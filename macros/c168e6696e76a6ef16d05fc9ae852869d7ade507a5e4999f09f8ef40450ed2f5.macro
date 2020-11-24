@@ -1,0 +1,1442 @@
+Attribute VB_Name = "BUC_forecast_automated"
+'Option Explicit
+'
+''msg box that doesn't block excel
+''Private Declare Function MessageBox _
+''        Lib "User32" Alias "MessageBoxA" _
+'() '           (ByVal hWnd As Long, _
+''            ByVal lpText As String, _
+''            ByVal lpCaption As String, _
+''            ByVal wType As Long) _
+''        As Long
+''
+''Public Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+'
+'Function FC_last()
+'ThisWorkbook.Worksheets(2).Calculate
+'FC_last = ThisWorkbook.Worksheets(2).Range("B2").Value
+'End Function
+'Function FC_last2()
+'ThisWorkbook.Worksheets(2).Calculate
+'FC_last2 = ThisWorkbook.Worksheets(2).Range("B3").Value
+'End Function
+'Function year_number()
+'year_number = ThisWorkbook.Worksheets(1).Range("B2").Value
+'End Function
+'Function FC_number()
+'FC_number = ThisWorkbook.Worksheets(1).Range("B3").Value
+'End Function
+'Function FC_type()
+'FC_type = ThisWorkbook.Worksheets(1).Range("B4").Value
+'End Function
+'Function FC_type_2()
+'FC_type_2 = ThisWorkbook.Worksheets(1).Range("B5").Value
+'End Function
+'Function FC_type_3()
+'FC_type_3 = ThisWorkbook.Worksheets(1).Range("B6").Value
+'End Function
+'Function CC()
+'CC = ThisWorkbook.Worksheets(1).Range("B7").Value
+'End Function
+'Function path()
+'path = ThisWorkbook.path
+'End Function
+'Function name()
+'
+'If FC_type = "Other" Then
+'  name = FC_type_2
+'Else
+'  name = FC_type
+'End If
+'
+'End Function
+'Function forecast()
+'forecast = "WFP Download - 2016 " & FC_number & " Forecast - " & name
+'End Function
+'Function live_report()
+'live_report = "WFP_Live_Report " & name
+'End Function
+'Function comparison()
+'comparison = "WFP Download - (" & FC_number & " and " & FC_last & ") Comparison " & name
+'End Function
+'Function FC_Version_field()
+'FC_Version_field = Workbooks(comparison).Sheets("Data").Rows(1).Find(what:="FC Version").Column
+'End Function
+''=======================================================
+'Sub do_forecast_1()
+'
+''14.1.1  Create new folder with period number in local shared drive folder.
+'Call create_folder
+''14.1.2  From previous reporting period copy file "template" and paste it to new created folder.
+'Call copy_template
+'
+'Call open_previous_forecast
+'Call combo_live_report_1
+'
+'ThisWorkbook.Activate
+'End Sub
+'
+'Sub do_forecast_2()
+'Call combo_live_report_2
+'Call combo_forecast
+'Call put_SHPT(forecast)
+'
+'  If FC_type <> "Other" Then
+'    Call pick_comparison_file
+'    Call put_SHPT(comparison)
+'  End If
+'
+'Call send_email
+'
+'End Sub
+''=======================================================
+'
+''##########################create folder if not exists#######################
+'
+'Sub create_folder()
+''create folder if doesn't exist yet
+'If folder_exists(ThisWorkbook.path & "\" & year_number, FC_number) = False Then MkDir ThisWorkbook.path & "\" & year_number & "\" & FC_number
+'
+'End Sub
+'
+'
+'Function folder_exists(path As String, folder As String) As Boolean
+'
+'  If Right(path, 1) <> "\" Then path = path & "\"
+'
+'  Dim myname As String
+'
+'  myname = Dir(path, vbDirectory)   ' Retrieve the first entry.
+'  Do While myname <> ""
+'        ' Use bitwise comparison to make sure MyName is a directory.
+'        If (GetAttr(path & myname) And vbDirectory) = vbDirectory Then
+'          If myname = folder Then
+'              folder_exists = True
+'              Exit Function
+'          End If
+'        End If
+'     myname = Dir()   ' Get next entry.
+'  Loop
+'
+'  folder_exists = False
+'
+'End Function
+''##########################template copy#######################
+'Sub copy_template()
+'Call copy_file_from_previous_month_if_not_exists(ThisWorkbook.path & "\" & year_number & "\" & FC_last, ThisWorkbook.path & "\" & year_number & "\" & FC_number, "template")
+'End Sub
+'
+'Sub copy_file_from_previous_month_if_not_exists(old_path As String, new_path As String, file_name As String)
+'
+'
+'If Not thing_exists(new_path, file_name, vbArchive) Then
+'
+'  FileCopy old_path & "\" & file_name & ".xlsx", new_path & "\" & file_name & ".xlsx"
+'End If
+'
+'End Sub
+'
+'Function thing_exists(path As String, thing_name, vb_type As VbFileAttribute) As Boolean
+'
+' Dim myname As String
+'
+'If Right(path, 1) <> "\" Then path = path & "\"
+'
+'myname = Dir(path, vb_type)   ' Retrieve the first entry.
+'Do While myname <> ""
+'      ' Use bitwise comparison to make sure MyName is a directory.
+'      If (GetAttr(path & myname) And vb_type) = vb_type Then
+'        If myname = thing_name Then
+'            thing_exists = True
+'            Exit Function
+'        End If
+'      End If
+'   myname = Dir()   ' Get next entry.
+'Loop
+'
+'thing_exists = False
+'
+'End Function
+''##########################open previous file#######################
+'
+'Sub open_previous_forecast()
+'
+'  'On Error GoTo errhandler 'and open EUA
+'
+'  'get recent file
+'  Dim file As String
+'  If FC_type = "Other" Then
+'    file = FC_number & "\WFP Download - 2016 " & FC_number & " Forecast - INITIAL"
+'  Else
+'    Select Case FC_type
+'      Case "INITIAL"
+'      file = FC_last & "\WFP Download - 2016 " & FC_last & " Forecast - FINAL"
+'      Case "REVISED"
+'      file = FC_number & "\WFP Download - 2016 " & FC_number & " Forecast - INITIAL"
+'      Case "FINAL"
+'      file = FC_number & "\WFP Download - 2016 " & FC_number & " Forecast - REVISED"
+'    End Select
+'  End If
+'
+'
+'  'open and save with new name
+'  Application.DisplayAlerts = False
+'  Workbooks.Open path & "\" & file & ".xlsx"
+'  Application.DisplayAlerts = True
+'
+'  ActiveWorkbook.SaveAs (path & "\" & FC_number & "\WFP Download - 2016 " & FC_number & " Forecast - " & name)
+'
+'  Exit Sub
+'
+'
+'  'if file doesn't exist open EUA
+'errhandler:
+'  If Err = 1004 Then
+'    Workbooks.Open Left(path, InStr(path, "\BUC Forecast")) & "EUAs\WFP Download - Forecast.xlsx"
+'    Application.DisplayAlerts = True
+'    ActiveWorkbook.SaveAs (path & "\" & FC_number & "\WFP Download - 2016 " & FC_number & " Forecast - " & name)
+'  Else
+'    Err.Raise Err, , Err.Description
+'  End If
+'
+'
+'End Sub
+'
+''##########################live_report#######################
+'Sub combo_live_report_1()
+'
+'MsgBox "without sensitive data!"
+'
+' 'Call goto_WFP
+'End Sub
+'
+'Sub combo_live_report_2()
+'
+'  Call save_live_report
+'
+'End Sub
+'
+'Sub goto_WFP()
+'
+'  Dim w As Long, IE, i As Integer
+'  Set IE = GetObject("new:{D5E8041D-920F-45e9-B8FB-B1DEB82C6E5E}")
+'
+'  'open IE and goto/WFP
+'  With IE
+'    .Visible = True
+'    .Navigate "http://nldn4442dww.ldn.swissbank.com:9090/#/report"
+'    Do Until .readystate <> 4
+'      DoEvents
+'      Sleep 1000
+'    Loop
+'  End With
+'
+'  Sleep 5000
+'
+'  w = 100 'wait time
+'
+'  'change date in consolidation
+'  For i = 1 To 19
+'    SendKeys "{TAB}", True
+'    Sleep w
+'  Next i
+'
+'  For i = 1 To 2
+'    SendKeys "^{UP}", True
+'    Sleep w
+'  Next i
+'
+'  SendKeys "{NUMLOCK}", True
+'
+'End Sub
+'
+'Sub save_live_report()
+'
+'  Workbooks(Workbooks.Count).Activate
+'  Dim temp As VbMsgBoxResult
+'  temp = MsgBox("is this live report?", vbYesNo + vbQuestion)
+'  If temp = vbNo Then
+'  MsgBox "activate live_report file"
+'  Stop
+'  End If
+'  ActiveWorkbook.SaveAs path & "\" & FC_number & "\" & "WFP_Live_Report " & name & ".xlsx"
+'  'if error -> not enough space on disk
+'End Sub
+'
+''##########################forecast#######################
+'
+'Sub combo_forecast()
+'
+'Call compare
+'Call clear
+'Call copy_paste
+'Call close_live_report
+'Call adjust
+'Call refresh_all
+'Call save_forecast
+'
+'End Sub
+'
+'Sub compare()
+'
+'Stop
+''RECZNIE!
+'
+'
+' ' Dim cell As Range
+''  For Each cell In Workbooks(live_report).Sheets("Movements").UsedRange.Rows(1).Cells
+''    If cell.Value <> Workbooks(forecast).Sheets("Movements").UsedRange.Rows(1).Cells(cell.Column).Value Then
+''      'MessageBox &O0, "fix headings", "My Box", vbOKOnly
+''      Call compare
+''    End If
+''  Next cell
+'
+''compare number of columns(if changes in pivots needed)
+'
+'
+'
+'End Sub
+'
+'Sub clear()
+'  Workbooks(forecast).Sheets("Movements").UsedRange.Rows.Delete
+'End Sub
+'
+'Sub copy_paste()
+'  Workbooks(live_report).Sheets("Movements").UsedRange.Copy Workbooks(forecast).Sheets("Movements").Cells(1, 1)
+'End Sub
+'
+'Sub close_live_report()
+'  Workbooks(live_report).Close False
+'End Sub
+'
+'Sub adjust() 'filter and change value
+'
+'  Dim col_date As Integer, col_AFC As Integer
+'  col_date = Workbooks(forecast).Sheets("movements").Rows(1).Find("Date Reporting").Column
+'  'col_AFC = Workbooks(forecast).Sheets("movements").Rows(1).Find("ActualsFC").Column
+'
+'  'actuals
+''  Workbooks(forecast).Sheets("movements").Range("$A$1:$BE$" & Workbooks(forecast).Sheets("movements").UsedRange.Rows.Count).AutoFilter _
+''  field:=col_date, Operator:=xlFilterValues, Criteria2:=Array(1, Left(FC_number, InStr(1, FC_number, "+") - 1) & "/1/2015") 'Criteria1:=DateSerial(2015, Left(FC_number, InStr(1, FC_number, "+") - 1), 1)
+''
+''  Workbooks(forecast).Sheets("movements").UsedRange.Offset(1, 0).Columns(col_AFC).Value = "Actuals"
+'
+'  '2013
+'  Workbooks(forecast).Sheets("movements").Range("$A$1:$BE$" & Workbooks(forecast).Sheets("movements").UsedRange.Rows.Count).AutoFilter _
+'  field:=col_date, Operator:=xlFilterValues, Criteria2:=Array(0, "1/1/2013") 'Criteria1:=DateSerial(2015, Left(FC_number, InStr(1, FC_number, "+") - 1), 1)
+'
+'  Workbooks(forecast).Sheets("movements").UsedRange.Columns(col_date).Value = "12/01/2013"
+'
+'  '2014
+'  Workbooks(forecast).Sheets("movements").Range("$A$1:$BE$" & Workbooks(forecast).Sheets("movements").UsedRange.Rows.Count).AutoFilter _
+'  field:=col_date, Operator:=xlFilterValues, Criteria2:=Array(0, "1/1/2014") 'Criteria1:=DateSerial(2015, Left(FC_number, InStr(1, FC_number, "+") - 1), 1)
+'
+'  Workbooks(forecast).Sheets("movements").UsedRange.Columns(col_date).Value = "12/01/2014"
+'
+'  'change heading in date reporting (its "12/01/2014" now)
+'  Workbooks(forecast).Sheets("movements").Cells(1, col_date) = "Date Reporting"
+'
+'
+'  Workbooks(forecast).Sheets("movements").ShowAllData
+'
+''Workbooks(forecast).Sheets("movements").UsedRange.Columns(Workbooks(forecast).Sheets("movements").UsedRange.Columns.Count + 1).Formula = "df"
+''
+''Workbooks(forecast).Sheets("movements").Cells(1, Workbooks(forecast).Sheets("movements").UsedRange.Columns.Count) = "Act/FC"
+'
+'End Sub
+'
+'Sub refresh_all()
+'  Workbooks(forecast).RefreshAll
+'End Sub
+'
+'Sub save_forecast()
+'  Workbooks(forecast).Worksheets(2).Activate
+'  Workbooks(forecast).save
+'End Sub
+'
+''##########################comparison file#######################
+'
+'Sub pick_comparison_file()
+'
+'  If FC_type = "INITIAL" Then
+'
+'    'open last final
+'    Workbooks.Open path & "\" & FC_last & "\" & "WFP Download - (" & FC_last & " and " & FC_last2 & ") Comparison FINAL.xlsx"
+'    ActiveWorkbook.SaveAs path & "\" & FC_number & "\" & "WFP Download - (" & FC_number & " and " & FC_last & ") Comparison " & name & ".xlsx"
+'
+'    Call compare_comparison
+'
+'    'fiter last column for last2 - delete old data
+'    Workbooks(comparison).Sheets("Data").Range("$A$1:$BF$" & Workbooks(comparison).Sheets("Data").UsedRange.Rows.Count).AutoFilter field:=FC_Version_field, Criteria1:=FC_last2
+'    Workbooks(comparison).Sheets("Data").UsedRange.SpecialCells(xlVisible).Offset(1, 0).Delete xlShiftUp
+'    Workbooks(comparison).Sheets("Data").ShowAllData
+'
+'    'muliple fte by -1
+'      Dim temp As String
+'      temp = Workbooks(comparison).Sheets("Data").Range("B2")
+'      Workbooks(comparison).Sheets("Data").Range("B2") = -1
+'
+'      Workbooks(comparison).Sheets("Data").UsedRange.Columns(24).Offset(1, 0).Select
+'      Workbooks(comparison).Sheets("Data").Range("B2").Copy
+'      Selection.PasteSpecial Paste:=xlPasteAll, Operation:=xlMultiply, SkipBlanks:=False, Transpose:=False
+'
+'      Application.CutCopyMode = False
+'
+'      'delete last row
+'      Workbooks(comparison).Sheets("Data").Rows(Workbooks(comparison).Sheets("Data").UsedRange.Rows.Count).Delete
+'
+'      Workbooks(comparison).Sheets("Data").Range("B2") = temp
+'
+'  Else
+'
+'    'open initial
+'    Workbooks.Open path & "\" & FC_number & "\" & "WFP Download - (" & FC_number & " and " & FC_last & ") Comparison INITIAL.xlsx"
+'    ActiveWorkbook.SaveAs path & "\" & FC_number & "\" & "WFP Download - (" & FC_number & " and " & FC_last & ") Comparison " & name & ".xlsx"
+'
+'    Call compare_comparison
+'
+'    'fiter last column for number - delete data from previous forecast
+'    Workbooks(comparison).Sheets("Data").Range("$A$1:$BF$" & Workbooks(comparison).Sheets("Data").UsedRange.Rows.Count).AutoFilter field:=FC_Version_field, Criteria1:=FC_number
+'    Workbooks(comparison).Sheets("Data").UsedRange.Offset(1, 0).SpecialCells(xlVisible).Delete xlShiftUp
+'    Workbooks(comparison).Sheets("Data").ShowAllData
+'
+'  End If
+'
+'  Call comparison_file
+'
+'End Sub
+'
+'
+'Sub comparison_file()
+'
+'Dim first_line As Long
+'first_line = WorksheetFunction.CountA(Workbooks(comparison).Sheets("Data").Columns(1)) + 1
+'
+''paste from forecast add FC_number
+'
+'  Workbooks(forecast).Sheets("Movements").UsedRange.Offset(1, 0).Copy Workbooks(comparison).Sheets("Data"). _
+'                                                                    Cells(first_line, 1)
+'
+'
+'  Workbooks(comparison).Sheets("Data").Range("$A$1:$BF$" & Workbooks(comparison).Sheets("Data").UsedRange.Rows.Count).AutoFilter field:=FC_Version_field, Criteria1:=""
+'  last_line = WorksheetFunction.CountA(Workbooks(comparison).Sheets("Data").Columns(1))
+'  Workbooks(comparison).Sheets("Data").Range(Cells(first_line, FC_Version_field), Cells(last_line, FC_Version_field)).Value = FC_number
+'  Workbooks(comparison).Sheets("Data").ShowAllData
+'
+'
+''refresh - activate 2nd tab
+'  Workbooks(comparison).RefreshAll
+'  Workbooks(comparison).Sheets(2).Activate
+'
+''save
+'
+'Workbooks(comparison).save
+'End Sub
+'Sub compare_comparison() ' compare headings and number of columns
+'
+'
+'Stop
+''RECZNIE!
+'
+'
+'
+''  'number of columns
+''  If Workbooks(forecast).Sheets("Movements").UsedRange.Columns.Count <> Workbooks(comparison).Sheets("Data").UsedRange.Columns.Count - 1 Then
+''    MessageBox &O0, "nb heading differ", "My Box", vbOKOnly
+''    Call compare
+''  End If
+''
+''  'headings
+''  Dim cell As Range
+''  For Each cell In Workbooks(forecast).Sheets("Movements").UsedRange.Rows(1).Cells
+''    If cell.Value <> Workbooks(comparison).Sheets("Data").UsedRange.Rows(1).Cells(cell.Column).Value Then
+''      MessageBox &O0, "fix headings" & Workbooks(comparison).Sheets("Movements").UsedRange.Rows(1).Cells(cell.Column).Value, "My Box", vbOKOnly
+''      Call compare_comparison
+''    End If
+''  Next cell
+'
+'End Sub
+'
+''##########################put to Share Point#######################
+'
+'Sub put_SHPT(name As String)
+'  Workbooks(name).SaveAs "https://teams.cc.cnet.ubs.net/sites/WFP/Shared%20Documents/BUC%20Files/" & Workbooks(name).name
+'End Sub
+'
+''##########################e-mail#######################
+'
+'Sub send_email()
+'
+'  Dim FC As String, FC_type_1 As String
+'
+'  FC_type_1 = FC_type
+'  If FC_type_1 <> "Other" Then
+'    FC = FC_type_1 & " " & FC_number
+'    Else
+'    FC = FC_type_2 & " " & FC_number
+'    FC_type_1 = FC_type_2
+'  End If
+'
+'  'links: both or only forecast
+'
+'  Dim links As String, Links_Forecast As String, Links_Comparison As String
+'  Links_Forecast = "<A HREF=""https://teams.cc.cnet.ubs.net/sites/WFP/Shared%20Documents/BUC%20Files/WFP%20Download%20-%202016%20" & FC_number & "%20Forecast%20-%20" & FC_type_1 & ".xlsx"">" & _
+'                    FC & " Forecast</A>"
+'  Links_Comparison = "<A HREF=""https://teams.cc.cnet.ubs.net/sites/WFP/Shared%20Documents/BUC%20Files/WFP%20Download%20-%20(" & FC_number & "%20and%20" & FC_last & ")%20Comparison%20" & FC_type_1 & ".xlsx"">" & _
+'                    FC & "&" & FC_last & " Comparison file</A>"
+'
+'  If FC_type <> "Other" Then
+'    links = Links_Forecast & "<br>" & Links_Comparison
+'  Else
+'    Select Case FC_type_3
+'      Case "Forecast"
+'      links = Links_Forecast
+'      Case "Comparison"
+'      links = Links_Comparison
+'      Case "both"
+'      links = Links_Forecast & "<br>" & Links_Comparison
+'    End Select
+'  End If
+'
+'
+'  'e-mail itself
+'
+'    Dim olApp As Object, olMail As Object
+'    Set olApp = CreateObject("Outlook.Application")
+'    Set olMail = olApp.CreateItem(0)
+'
+'     With olMail
+'        .To = "SH-GO-COO-CBM <sh-go-coo-cbm@ubs.com>; DL-WFP-BM <dl-wfp-bm@ubs.com>"
+'        .CC = CC
+'        .Subject = FC & " forecast available"
+'
+'        .HTMLBody = "<p style='font-family:calibri;font-size:14.5'>Dear WFP users,<br><br>" & FC & _
+'        " BUC Forecast has been uploaded on the SharePoint, please find the links below:<br><br>" & _
+'        links & "<br><br><br>" & _
+'        "<p style='font-family:calibri;font-size:14.5'>If you have any question then feel free to contact us via the Shared Mailbox (sh-go-coo-cbm)." & _
+'        "<br><br><br>Best Regards,<br>Gosia Potoczek<br><br>Reporting & Analytics Services<br>UBS Krakow Business Solutions Center<br>" & _
+'        "Internal 19267 7492<br>Tel +48 12399 7492</p>"
+'
+'        .Display
+'        '.send
+'      End With
+'
+'    Set olMail = Nothing
+'    Set olApp = Nothing
+'
+'End Sub
+'
+'Sub PivotSourceChangeAll()
+'Dim wb As Workbook
+'Dim ws As Worksheet
+'Dim wsList As Worksheet
+'Dim pt As PivotTable
+'Dim lPT As Long
+'On Error Resume Next
+'
+'Set wb = ActiveWorkbook
+''Set wsList = Worksheets.Add
+''With wsList
+''  .Range(.Cells(1, 1), .Cells(1, 3)).Value _
+''      = Array("Sheet", "PivotTable", "Source Data")
+''End With
+''lPT = 2
+'
+'For Each ws In wb.Worksheets
+'  For Each pt In ws.PivotTables
+'      pt.ChangePivotCache ActiveWorkbook. _
+'        PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+'        "Movements!C1:C" & wb.Worksheets("Movements").UsedRange.Columns.Count _
+'        , version:=xlPivotTableVersion14)
+'  Next pt
+'Next ws
+'
+'
+'
+'End Sub
+'
+'Sub PivotSourceListAll()
+'Dim wb As Workbook
+'Dim ws As Worksheet
+'Dim wsList As Worksheet
+'Dim pt As PivotTable
+'Dim lPT As Long
+'On Error Resume Next
+'
+'Set wb = ActiveWorkbook
+'Set wsList = Worksheets.Add
+'With wsList
+'  .Range(.Cells(1, 1), .Cells(1, 3)).Value _
+'      = Array("Sheet", "PivotTable", "Source Data")
+'End With
+'lPT = 2
+'
+'For Each ws In wb.Worksheets
+'  For Each pt In ws.PivotTables
+'    With wsList
+'      .Range(.Cells(lPT, 1), .Cells(lPT, 3)).Value _
+'          = Array(ws.name, pt.name, pt.SourceData)
+'    End With
+'    lPT = lPT + 1
+'  Next pt
+'Next ws
+'
+'With wsList
+'  .Columns("A:C").EntireColumn.AutoFit
+'  .Rows(1).Font.Bold = True
+'End With
+'
+'End Sub
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+'
+''========================not used=============
+'
+''##########################open WFP site#######################
+'Sub OpenUrl()
+'
+'Dim w As Long
+'w = 200
+'
+'Dim IE
+'Set IE = GetObject("new:{D5E8041D-920F-45e9-B8FB-B1DEB82C6E5E}")
+'
+'With IE
+'.Visible = True
+'.Navigate "http://nldn4442dww.ldn.swissbank.com:9090/#/report"
+'Do Until .readystate <> 4
+'DoEvents
+'Sleep 1000
+'Loop
+'End With
+'
+'
+' Sleep 5000
+'
+'    Dim i As Integer
+'    For i = 1 To 19
+'    SendKeys "{TAB}", True
+'    Sleep w
+'    Next i
+'
+'For i = 1 To 2
+'SendKeys "^{UP}", True
+'Sleep w
+'Next i
+'
+'For i = 1 To 6
+'SendKeys "+{TAB}", True
+'Sleep w
+'Next i
+'
+'SendKeys " ", True
+'Sleep w
+'
+'SendKeys "^j", True
+'Sleep w
+'
+'
+'SendKeys "%l", True
+'Sleep w
+'
+'SendKeys "%c", True
+'Sleep w
+'
+'Dim WBCOUNT As Integer, j As Integer
+'WBCOUNT = Workbooks.Count
+'
+'Do Until WBCOUNT <> Workbooks.Count Or j = 30
+'DoEvents
+'Sleep 5000
+''SendKeys "^j", True
+''Sleep w
+''
+''SendKeys "{RIGHT} ", True
+'''SendKeys "%s", True
+''Sleep w + 2000
+''
+''SendKeys "~", True
+''Sleep w + 2000
+''
+''SendKeys "%c", True
+''Sleep w
+'
+'j = j + 1
+'Loop
+'
+'If j = 30 Then MsgBox j
+'
+'
+'Workbooks(Workbooks.Count).Activate
+'
+'
+'MsgBox ActiveWorkbook.name
+'
+'SendKeys "{NUMLOCK}", True
+'
+'End Sub
+'
+''##########################save live report#######################
+'
+'Sub save_live_report_old()
+'
+'Dim name As String
+'If FC_type = "Other" Then
+'  name = FC_type_2
+'Else
+'  name = FC_type
+'End If
+'
+'
+'Workbooks(Workbooks.Count).SaveAs path & "\" & FC_number & "\" & "WFP_Live_Report " & name & ".xlsx"
+'
+'End Sub
+'
+'
+'
+'Sub SleepTest()
+''MsgBox "Execution is started"
+''Sleep 500 'delay in milliseconds
+''MsgBox "Execution Resumed"
+'
+'Dim w As Long
+'w = 200
+'On Error GoTo 0
+'
+'With CreateObject("InternetExplorer.Application")
+'.Visible = True
+'.Navigate "http://nldn4442dww.ldn.swissbank.com:9090/#/report"
+'Do While .busy <> True
+'Debug.Print "busy"
+'Loop
+''Application.Wait Now + TimeValue("00:00:02")
+''Sleep 100
+'
+'Debug.Print "end"
+'End With
+''
+''
+''
+''    'Application.Wait (Now + TimeValue("0:00:05"))
+''
+''    Dim i As Integer
+''    For i = 1 To 19
+''    SendKeys "{TAB}", True
+''   Sleep w
+''    Next i
+''
+''For i = 1 To 2
+''SendKeys "^{UP}", True
+''Sleep w
+''Next i
+''
+''For i = 1 To 6
+''SendKeys "+{TAB}", True
+''Sleep w
+''Next i
+''
+'''SendKeys " ", True
+''Sleep w
+''
+''SendKeys "{NUMLOCK}", True
+''
+''
+'''#############
+'
+'End Sub
+'
+'
+'
+'Function IsWorkBookOpen(FileName As String)
+'    Dim ff As Long, ErrNo As Long
+'
+'    On Error Resume Next
+'    ff = FreeFile()
+'    Open FileName For Input Lock Read As #ff
+'    Close ff
+'    ErrNo = Err
+'    On Error GoTo 0
+'
+'    Select Case ErrNo
+'    Case 0:    IsWorkBookOpen = False
+'    Case 70:   IsWorkBookOpen = True
+'    Case Else: Error ErrNo
+'    End Select
+'End Function
+'
+'
+'Sub resp2()
+'Dim response
+'response = MessageBox(&O0, "Do you want to dance?", "My Question", vbYesNo + vbSystemModal)
+'
+'End Sub
+Attribute VB_Name = "Module1"
+Option Explicit
+
+Dim response As VbMsgBoxResult
+Const year As String = "E4"
+Const cycle As String = "E7"
+Const prev_cycle As String = "F7"
+'Const old_cycle As String = "G7"
+'Const version As String = "E10"
+'Const report As String = "J4"
+Const main_path2 As String = "\\UBSPROD.MSAD.UBS.NET\GROUPSHARES\GLOBAL\RAS_GO\RAS_GO\RAS_COO\3. Reports\WFP\post forecast reporting\Location strategy\"
+Dim ms As Worksheet
+'Dim lr As Worksheet
+Dim lstem As Workbook
+'Dim wbBM As Workbook
+'Dim temp As Workbook
+'Dim file_path As String
+'Dim detailed_path As String
+'Dim picked_cycle As String
+Dim old_path, new_path, old_name, new_name As String
+'Dim lastrow As Long
+'Dim lastrow2 As Long
+'Dim lastcol As Byte
+'Dim FC_version_col As Byte
+'Dim FTE_col_nm As String
+'Dim FTE_col As Byte
+'Dim stime
+'Dim ftime
+
+Sub run_location_strategy_report()
+
+response = MsgBox("Run Location Strategy Report?", vbYesNoCancel)
+
+If response <> vbYes Then Exit Sub
+
+Set ms = ThisWorkbook.Worksheets("MasterSheet")
+ms.Calculate
+
+'create new
+  Call create_folder_if_not_exists(main_path2 & ms.Range(year), ms.Range(cycle))
+'copy old files
+  Call copy_file_from_previous_month_if_not_exists2("Location strategy report.xlsx", True)
+  Call copy_file_from_previous_month_if_not_exists2("Location strategy template.xlsm", False)
+'open template - will be opened
+  Set lstem = ActiveWorkbook
+'set to manual
+  lstem.CalculationVersion = xlManual
+'delete old data
+  'lstem.Worksheets("DATA").
+'open livereport
+'check column names
+'filter till curr yeAR
+'copy data
+''close live report
+'wait for budget data
+'filter next 2 years
+'copy data
+'close live report
+'formulas
+'current tab
+'calculate all
+'refresh pivot in list if vendors
+'fill formula
+'calculate all
+'check if nthg missing in data
+'refresh list of mappings
+'refresh pivot
+'fill formula
+'open loca strat report
+'run macro
+'copy list of mappings
+'refresh pivot
+'safe
+'close
+'info about comment
+  MsgBox "comment on UniFi: " & vbNewLine & ms.Range(cycle), vbInformation
+
+End Sub
+
+
+
+
+Sub copy_file_from_previous_month_if_not_exists2(file_name As String, closeit As Boolean)
+
+
+
+old_path = main_path2 & ms.Range(year) & "\" & ms.Range(prev_cycle)
+new_path = main_path2 & ms.Range(year) & "\" & ms.Range(cycle)
+
+If Not thing_exists(new_path, file_name, vbArchive) Then
+  Workbooks.Open old_path & "\" & file_name
+  ActiveWorkbook.SaveAs new_path & file_name
+  If closeit Then ActiveWorkbook.Close
+End If
+
+
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+Sub mesboxes()
+  MsgBox "vbCritical", vbCritical
+  MsgBox " vbAbortRetryIgnore", vbAbortRetryIgnore
+    MsgBox " vbApplicationModal", vbApplicationModal
+      MsgBox "vbCritical", vbCritical
+        MsgBox "vbDefaultButton1", vbDefaultButton1
+          MsgBox "vbDefaultButton2", vbDefaultButton2
+            MsgBox "vbDefaultButton3", vbDefaultButton3
+              MsgBox "vbDefaultButton4", vbDefaultButton4
+              MsgBox "vbExclamation", vbExclamation
+              MsgBox "vbInformation", vbInformation
+              MsgBox "vbMsgBoxHelpButton", vbMsgBoxHelpButton
+              MsgBox "vbMsgBoxRight", vbMsgBoxRight
+              MsgBox "vbMsgBoxRtlReading", vbMsgBoxRtlReading
+              MsgBox "vbMsgBoxSetForeground", vbMsgBoxSetForeground
+              MsgBox "vbOKCancel", vbOKCancel
+              MsgBox "vbOKOnly", vbOKOnly
+              MsgBox "vbQuestion", vbQuestion
+              MsgBox "vbRetryCancel", vbRetryCancel
+              MsgBox "vbSystemModal", vbSystemModal
+              MsgBox "vbYesNo", vbYesNo
+              MsgBox "vbYesNoCancel", vbYesNoCancel
+End Sub
+Attribute VB_Name = "Module2"
+Option Explicit
+
+Const report_cycle As String = "E1"
+Const year As String = "E4"
+Const cycle As String = "E7"
+Const prev_cycle As String = "F7"
+Const old_cycle As String = "G7"
+Const version As String = "E10"
+Const report As String = "J4"
+Const answer As String = "J7"
+Const main_path As String = "\\UBSPROD.MSAD.UBS.NET\GROUPSHARES\GLOBAL\RAS_GO\RAS_GO\RAS_COO\3. Reports\WFP\BUC Forecast\"
+Dim ms As Worksheet
+Dim lr As Worksheet
+Dim wbBUC As Workbook
+Dim wbBM As Workbook
+Dim temp As Workbook
+Dim file_path As String
+Dim detailed_path As String
+Dim picked_cycle As String
+Dim old_path, new_path, old_name, new_name As String
+Dim lastrow As Long
+Dim lastrow2 As Long
+Dim lastcol As Byte
+Dim FC_version_col As Byte
+Dim FTE_col_nm As String
+Dim FTE_col As Byte
+Dim max_column As Byte
+Dim max_date As Date
+Dim stime
+Dim ftime
+Dim ans As VbMsgBoxResult
+
+
+Sub run_forecats_2()
+
+stime = Timer
+
+Set ms = ThisWorkbook.Worksheets("MasterSheet")
+ms.Calculate
+
+ThisWorkbook.Worksheets("checker").UsedRange.Delete xlUp
+
+Call run_forecats(ms)
+
+Call final_check
+
+ftime = Timer
+
+'MsgBox ftime - stime, vbInformation
+MsgBox _
+          "reporting period: " & ms.Range(report_cycle) & vbNewLine & _
+          "comentary: " & ms.Range(cycle) & " " & ms.Range(version) _
+
+End Sub
+
+Sub final_check()
+ With ThisWorkbook.Worksheets("checker").UsedRange
+        .Interior.Pattern = xlNone
+        .Interior.TintAndShade = 0
+        .Interior.PatternTintAndShade = 0
+ .NumberFormat = "0.00"
+ .FormatConditions.AddUniqueValues
+ .FormatConditions(1).DupeUnique = xlDuplicate
+ .FormatConditions(1).Interior.Color = 13561798
+ End With
+End Sub
+
+
+Sub initial_prep(ms As Worksheet)
+
+Call create_folder_if_not_exists(main_path & ms.Range(year), ms.Range(cycle)) 'creates new folder for reporting cycle
+'copy previous files and changes names where true
+Call copy_file_from_previous_month_if_not_exists("template.xlsx", False)
+Call copy_file_from_previous_month_if_not_exists("BM Forecast FINAL.xlsx", True)
+Call copy_file_from_previous_month_if_not_exists("BUC Forecast FINAL.xlsb", True)
+
+End Sub
+
+
+  
+
+
+Sub change_sign_I(ws As Worksheet, FTE_col_nm As String)
+
+If ws.FilterMode Then ws.ShowAllData
+lastrow = ws.UsedRange.Rows.Count
+'pomnoz przez -1
+
+FTE_col = ws.Rows(1).Find(FTE_col_nm).Column
+
+ws.Cells(lastrow + 1, FTE_col).Value = -1
+
+ 
+    ws.Cells(lastrow + 1, FTE_col).Copy
+    
+    ws.Range(ws.Cells(2, FTE_col), ws.Cells(lastrow, FTE_col)).PasteSpecial Paste:=xlPasteAll, Operation:=xlMultiply, _
+        SkipBlanks:=False, Transpose:=False
+
+    ws.Cells(lastrow + 1, FTE_col).ClearContents
+
+End Sub
+
+
+
+
+Sub run_forecats(ms As Worksheet)
+
+  If ms.Range(version) = "WD6" Then Call initial_prep(ms)
+  
+  Call open_this_file(ms.Range(year) & "\" & ms.Range(cycle) & "\WFP_Live_Report " & ms.Range(version) & ".xlsx")   'check if live report available and open live report
+  
+    Set lr = ActiveWorkbook.Sheets("Movements") 'live report
+  
+  If InStr(ms.Range(report), "BUC") > 0 Then Call run_BUC(ms, lr)
+  
+  If InStr(ms.Range(report), "BM") > 0 Then Call run_BM(ms, lr)
+
+
+
+End Sub
+
+
+Sub run_BUC(ms As Worksheet, lr As Worksheet)
+
+  Call open_this_file(ms.Range(year) & "\" & ms.Range(cycle) & "\BUC Forecast WD6.xlsb") 'open BUC file
+
+    Set wbBUC = ActiveWorkbook
+    
+  Call delete_old_data(wbBUC.Worksheets("Data"), ms)
+  
+  If ms.Range(version) = "WD6" Then
+    Call change_sign_I(wbBUC.Worksheets("Data"), "WF FTE")
+    Call check_columns
+  End If
+  
+  Call add_new_data(lr, wbBUC.Worksheets("Data"), ms)
+  
+  Call check_date(wbBUC.Worksheets("Data"))
+
+  wbBUC.RefreshAll
+  
+  If ms.Range(version) = "WD6" Then
+    MsgBox "change filters in pivots from " & ms.Range(prev_cycle) & " to " & ms.Range(cycle), vbExclamation
+    Stop 'change filters
+  End If
+  
+  wbBUC.Worksheets("GO overall").Activate
+  Range("A1").Select
+  
+  If ms.Range(version) = "WD6" Then
+  wbBUC.save
+  Else
+  wbBUC.SaveAs main_path & ms.Range(year) & "\" & ms.Range(cycle) & "\BUC Forecast " & ms.Range(version) & ".xlsb"
+  End If
+  
+    'copy to checker
+
+    With wbBUC.Worksheets("GO overall")
+    .Range(.Range("A100").End(xlUp).Offset(0, 1), .Range("A100").End(xlUp).End(xlToRight)).Copy ThisWorkbook.Worksheets("checker").Range("A2")
+    End With
+    
+  wbBUC.Close
+
+End Sub
+
+
+Sub check_columns()
+
+    lr.Rows("1:1").Copy
+    wbBUC.Worksheets("Data").Rows("2:2").Insert Shift:=xlDown
+    Application.CutCopyMode = False
+    wbBUC.Worksheets("Data").Activate
+    
+    Stop ' check columns
+    
+    ans = MsgBox("Did columns change?", vbYesNo + vbQuestion)
+    ms.Range(answer).Value = ans
+    
+    If ans = vbYes Then
+      MsgBox "Make needed changes now", vbExclamation
+      Stop
+    ElseIf ans = vbNo Then
+     wbBUC.Worksheets("Data").Rows("2:2").Delete
+    End If
+    
+    If wbBUC.Worksheets("Data").Cells(2, 1) = "Id" Then wbBUC.Worksheets("Data").Rows("2:2").Delete
+    
+End Sub
+
+
+Sub run_BM(ms As Worksheet, lr As Worksheet)
+
+  Call open_this_file(ms.Range(year) & "\" & ms.Range(cycle) & "\template.xlsx") 'open template
+  
+    Set temp = ActiveWorkbook
+    
+  Call prepare_template(temp, lr)
+
+  Call open_this_file(ms.Range(year) & "\" & ms.Range(cycle) & "\BM Forecast WD6.xlsx") 'open BM file
+
+    Set wbBM = ActiveWorkbook
+
+  Call delete_old_data(wbBM.Worksheets("Data"), ms)
+  
+  If ms.Range(version) = "WD6" Then
+    Call change_sign_I(wbBM.Worksheets("Data"), "WF FTE")
+    If ms.Range(answer) = 6 Then
+      MsgBox "Make needed changes now" & vbNewLine & "(if changes afects any of field used in BM report)", vbExclamation
+      Stop 'check columns
+    End If
+  End If
+  
+  Call add_new_data(temp.Worksheets("Pivot for data"), wbBM.Worksheets("Data"), ms)
+  
+  temp.Close False
+
+  wbBM.Worksheets("Data").Rows(wbBM.Worksheets("Data").Columns(1).Find("(blank)").Row).Delete
+  
+  wbBM.RefreshAll
+
+  If ms.Range(version) = "WD6" Then
+    MsgBox "change filters in pivots from " & ms.Range(prev_cycle) & " to " & ms.Range(cycle), vbExclamation
+    Stop 'change filters
+  End If
+  
+  wbBM.Worksheets("GO overall").Activate
+  Range("A1").Select
+  
+  If ms.Range(version) = "WD6" Then
+  wbBM.save
+  Else
+  wbBM.SaveAs main_path & ms.Range(year) & "\" & ms.Range(cycle) & "\BM Forecast " & ms.Range(version) & ".xlsx"
+  End If
+  
+    'copy to checker
+
+    With wbBM.Worksheets("GO overall")
+    .Range(.Range("A100").End(xlUp).Offset(0, 1), .Range("A100").End(xlUp).End(xlToRight)).Copy ThisWorkbook.Worksheets("checker").Range("A3")
+    End With
+    
+  wbBM.Close
+
+End Sub
+
+
+Sub open_this_file(detailed_path As String)
+
+  file_path = main_path & detailed_path
+
+  If existence_test(file_path) Then
+  
+    Workbooks.Open file_path
+  
+  Else
+  
+    Err.Raise 789, Description:="File " & file_path & "doesn't exist." & " Check file folder and name"
+ 
+  End If
+
+End Sub
+
+
+Sub prepare_template(temp As Workbook, lr As Worksheet)
+    
+    If ms.Range(version) = "WD6" And ms.Range(answer) = 6 Then 'yes
+      MsgBox "Make needed changes now", vbExclamation
+      Stop 'check columns
+    End If
+
+    temp.Worksheets("Movements").UsedRange.Offset(1, 0).Delete (xlUp)
+    
+    lastrow = lr.UsedRange.Rows.Count
+    lr.Range(lr.Cells(2, 1), lr.Cells(lastrow, 1)).EntireRow.Copy temp.Worksheets("Movements").Range(Cells(2, 1).Address)
+    
+    Call check_date(temp.Worksheets("Movements"))
+    
+    lr.Activate
+    
+      'copy to checker
+    'copy to checker
+
+    With ActiveWorkbook.Worksheets("Home Report ")
+        .Activate
+
+          With ActiveSheet.PivotTables("PivotTable4")
+          .RefreshTable
+          .PivotFields("FTE Type GCRS").PivotItems("Outsourced").Visible = False
+          .PivotFields("FTE Type GCRS").PivotItems("Intern").Visible = False
+          End With
+    
+    .Range(.Range("A1000").End(xlUp).Offset(0, 2), .Range("A1000").End(xlUp).End(xlToRight).End(xlToRight)).Copy ThisWorkbook.Worksheets("checker").Range("A1")
+    End With
+  
+    ActiveWorkbook.Close False
+    
+    temp.RefreshAll
+    
+End Sub
+
+Sub check_date(where As Worksheet)
+
+max_column = where.Rows(1).Find("Modified", lookat:=xlWhole).Column
+
+max_date = Application.WorksheetFunction.Max(where.Columns(max_column))
+
+If Now - max_date > 0.5 Then Err.Raise 789, , "last refresh more than 12h ago"
+
+End Sub
+
+Sub delete_old_data(ws As Worksheet, ms As Worksheet)
+
+  lastrow = ws.UsedRange.Rows.Count
+  
+  If ws.FilterMode Then ws.ShowAllData
+  
+  If ms.Range(version) = "WD6" Then
+    picked_cycle = old_cycle
+  Else
+    picked_cycle = cycle
+  End If
+
+  ws.UsedRange.AutoFilter field:=ws.Rows(1).Find("FC Version").Column, Criteria1:=ms.Range(picked_cycle)
+  
+  ws.Range(ws.Cells(2, 1), ws.Cells(lastrow, 1)).EntireRow.SpecialCells(xlVisible).Delete (xlUp)
+  
+End Sub
+
+Sub add_new_data(source As Worksheet, target As Worksheet, ms As Worksheet)
+
+    lastrow2 = source.UsedRange.Rows.Count
+    lastrow = target.UsedRange.Rows.Count
+  
+  source.Range(source.Cells(2, 1), source.Cells(lastrow2, 1)).EntireRow.Copy target.Range(Cells(lastrow + 1, 1).Address)
+  
+    FC_version_col = target.Rows(1).Find("FC Version").Column
+    
+    lastrow2 = target.UsedRange.Rows.Count
+    
+   target.Range(target.Cells(lastrow + 1, FC_version_col), target.Cells(lastrow2, FC_version_col)).Value = ms.Range(cycle)
+    
+End Sub
+
+
+Function existence_test(file_path As String) As Boolean
+
+If Dir(file_path) <> "" Then
+    existence_test = True
+Else
+    existence_test = False
+End If
+
+End Function
+
+
+
+
+
+Sub create_folder_if_not_exists(path As String, folder As String)
+
+If Not thing_exists(path, folder, vbDirectory) Then
+  MkDir path & folder
+End If
+
+End Sub
+
+Function thing_exists(path, thing_name, vb_type As VbFileAttribute) As Boolean
+ 
+ Dim myname As String
+ 
+If Right(path, 1) <> "\" Then path = path & "\"
+ 
+myname = Dir(path, vb_type)   ' Retrieve the first entry.
+Do While myname <> ""
+      ' Use bitwise comparison to make sure MyName is a directory.
+      If (GetAttr(path & myname) And vb_type) = vb_type Then
+        If myname = thing_name Then
+            thing_exists = True
+            Exit Function
+        End If
+      End If
+   myname = Dir()   ' Get next entry.
+Loop
+ 
+thing_exists = False
+ 
+End Function
+
+
+Sub copy_file_from_previous_month_if_not_exists(file_name As String, change_name As Boolean)
+
+
+
+old_path = main_path & ms.Range(year) & "\" & ms.Range(prev_cycle)
+new_path = main_path & ms.Range(year) & "\" & ms.Range(cycle)
+old_name = file_name
+If change_name Then
+new_name = Replace(file_name, "FINAL", "WD6")
+Else
+new_name = file_name
+End If
+
+If Not thing_exists(new_path, new_name, vbArchive) Then
+  Workbooks.Open old_path & "\" & old_name
+  ActiveWorkbook.SaveAs new_path & new_name
+  ActiveWorkbook.Close
+End If
+
+
+
+End Sub
+Attribute VB_Name = "Module3"
+Option Explicit
+
+Sub Macro2()
+Attribute Macro2.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Macro2 Macro
+'
+
+'
+    Columns("A:T").Select
+    Selection.NumberFormat = "0.00"
+End Sub
+Sub kolory()
+Dim i As Integer
+
+For i = 1 To 1000
+
+
+Range(Cells(i, 1), Cells(i, 10)).Interior.Color = i
+
+Next i
+
+End Sub
+Attribute VB_Name = "Module4"
+Option Explicit
+
+Sub Macro1()
+Attribute Macro1.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Macro1 Macro
+'
+
+'
+    Columns("A:T").Select
+    Selection.FormatConditions.AddUniqueValues
+   
+    Selection.FormatConditions(1).DupeUnique = xlDuplicate
+
+Selection.FormatConditions(1).Interior.Color = 13561798
+
+        
+
+
+   
+
+End Sub
+Sub Macro3()
+Attribute Macro3.VB_ProcData.VB_Invoke_Func = " \n14"
+'
+' Macro3 Macro
+'
+
+'
+    Columns("A:T").Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    Range("R21").Select
+End Sub
+Attribute VB_Name = "Sheet1"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+Option Explicit
+
+Attribute VB_Name = "Sheet2"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+Option Explicit
+
+Attribute VB_Name = "Sheet4"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+Option Explicit
+
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+Option Explicit
+
+
+
+INQUEST-PP=macro
