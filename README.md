@@ -6,3 +6,14 @@ This repository contains the data files and algorithms for clustering Microsoft 
 * `macros/`: Directory of raw VBA macro files, extracted from the document samples. Original documents can be found on [InQuest Labs](https://labs.inquest.net).
 * `classification.csv`: CSV representation of hash, AV positive count and label (one of UNKNOWN, MALICIOUS, BENIGN).
 * `vba_features.csv`: CSV representation of VBA feature vectors extracted from the raw macros above.
+
+### classification.csv
+This file consists of three columns `SHA256, AV Positives, classification`. AV positives is the number of engines within [VirusTotal](https://www.virustotal.com) that detected the file as malicious. The total number of engines is variable, for a number of reasons. It would be reasonable to consider the total number as 60. The number of requisite AV positives required to consider a sample as "malicious" is subjective. The third column, classification, is one of "UNKNOWN", "BENIGN", or "MALICIOUS". A number of factors went into application of these labels, the distribution of which is shown here:
+
+```
+$ cut -d',' -f3 classification.csv | distribution
+      Key|Ct   (Pct)    Histogram
+  UNKNOWN|8055 (80.55%) --------------------------------------------------------
+MALICIOUS|1790 (17.90%) -------------
+   BENIGN| 155  (1.55%) --
+```
