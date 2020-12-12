@@ -4,6 +4,7 @@ This repository contains the data files and algorithms for clustering Microsoft 
 ## Table of Contents
 * `av_labels/`: Directory of JSON files, one per sample, containing AntiVirus labels (if any).
 * `macros/`: Directory of raw VBA macro files, extracted from the document samples. Original documents can be found on [InQuest Labs](https://labs.inquest.net).
+* `cluster.ipynb`: Jupyter notebook demonstrating K-means clustering over the corpus.
 * `classification.csv`: CSV representation of hash, AV positive count and label (one of UNKNOWN, MALICIOUS, BENIGN).
 * `vba_features.csv`: CSV representation of VBA feature vectors extracted from the raw macros above.
 
@@ -17,3 +18,5 @@ $ cut -d',' -f3 classification.csv | distribution
 MALICIOUS|1790 (17.90%) -------------
    BENIGN| 155  (1.55%) --
 ```
+
+Generally, when you're looking to train a supervised model, you'll want 80% of your data to carry labels. Our ratio here is opposite but that's ok for an unsupervised model. In fact, the entire goal of this effort is to automatically expand on our labels within some threshold of confidence. The labels within `classification.csv` were applied through a variety of checks and balances to ensure fidelity. Within `av_labels` you can find a JSON dictionary containing the AV scan results for each of the documents. This data can of course be sourced to generate labels with varying threshold of confidence.
