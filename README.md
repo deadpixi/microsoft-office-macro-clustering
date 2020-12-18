@@ -9,10 +9,9 @@ This repository contains the data files and algorithms for clustering Microsoft 
 * `requirements.txt`: Libraries required for the notebook to work
 
 ### classification.csv
-This file consists of three columns `hash, vt_score, classification`. Vt_score is the number of engines within [VirusTotal](https://www.virustotal.com) that detected the file as malicious. The total number of engines is variable, for a number of reasons. It would be reasonable to consider the total number as 60. The number of requisite VT positives required to consider a sample as "malicious" is subjective. The third column, classification, is one of "UNKNOWN"(0), "BENIGN"(1), or "MALICIOUS"(2). A number of factors went into application of these labels, the distribution of which is shown here:
+This file consists of three columns `hash, vt_score, classification`. Vt_score is the number of engines within [VirusTotal](https://www.virustotal.com) that detected the file as malicious. The total number of engines is variable, for a number of reasons. It would be reasonable to consider the total number as 60. The number of requisite VT positives required to consider a sample as "malicious" is subjective. The third column, classification, is one of "UNKNOWN" (0), "BENIGN" (1), or "MALICIOUS" (2). A number of factors went into application of these labels, the distribution of which is shown here:
 
 ```
-$ cut -d',' -f3 classification.csv | distribution
       Key|Ct   (Pct)    Histogram
   UNKNOWN|8055 (80.55%) --------------------------------------------------------
 MALICIOUS|1790 (17.90%) -------------
