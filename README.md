@@ -1,4 +1,4 @@
-This repository contains the data files and algorithms for clustering Microsoft Office documents by their macro content. For access to the original documents, please see [InQuest Labs](https://labs.inquest.net/).
+This repository contains the data files and algorithms for clustering Microsoft Office documents by their macro content. For access to the original documents, please see [InQuest Labs](https://labs.inquest.net/) or read more about us on the web at https://www.inquest.net.
 
 ## Table of Contents
 * `av_labels/`: Directory of JSON files, one per sample, containing AntiVirus labels (if any).
